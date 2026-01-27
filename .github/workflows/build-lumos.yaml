@@ -1,16 +1,12 @@
-name: W1700k-minimal
+name: build-lumos
 
 on:
-  schedule:
-    - cron: '1 0 1 */3 *'
   workflow_dispatch:
 
 env:
   REMOTE_REPOSITORY: OpenWRT-fanboy/OpenW1700k
-  REMOTE_BRANCH: minimal
-  CONFIG_FILE: minimaldiff.config
-  CUSTOM_FILES_PATH: files/
-  RELEASE_PREFIX: minimal
+  REMOTE_BRANCH: lumos-AUTO
+  RELEASE_PREFIX: lumos
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:  
@@ -49,25 +45,26 @@ jobs:
       - name: Checkout current repository (custom files)
         uses: actions/checkout@v6
         with:
-          path: "custom_repo"
+          path: custom
       - name: Update and install feeds
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
       - name: Include custom files
         run: |
-          mkdir -p ${{ env.CUSTOM_FILES_PATH }}
-          mv custom_repo/w1700k/${{ env.CUSTOM_FILES_PATH }}* ${{ env.CUSTOM_FILES_PATH }}
-          mv ${{ env.CUSTOM_FILES_PATH }}overview.js feeds/luci/applications/luci-app-attendedsysupgrade/htdocs/luci-static/resources/view/attendedsysupgrade/overview.js
-          mv ${{ env.CUSTOM_FILES_PATH }}luci-app-airoha-npu feeds/luci/applications/
-          mv ${{ env.CUSTOM_FILES_PATH }}luci-app-w1700k-fancontrol feeds/luci/applications/
+          mkdir -p files/
+          mv custom/user/default/files/* files/
+          mv files/overview.js feeds/luci/applications/luci-app-attendedsysupgrade/htdocs/luci-static/resources/view/attendedsysupgrade/overview.js
+          mv files/luci-app-airoha-npu feeds/luci/applications/
+          mv files/luci-app-w1700k-fancontrol feeds/luci/applications/
           ./scripts/feeds update luci
           ./scripts/feeds install luci-app-airoha-npu
           ./scripts/feeds install luci-app-w1700k-fancontrol
       - name: Configure firmware image
         run: |
-          mv custom_repo/${{ env.CONFIG_FILE }} .config
+          mv custom/user/${{ env.RELEASE_PREFIX }}/config.diff .config
           make defconfig
+          echo CONFIG_VERSION_NUMBER=${{ env.RELEASE_PREFIX }}-SNAPSHOT >> .config
       - name: Download dependencies
         run: make -j$(($(nproc)+1)) download
       - name: Build the firmware image
@@ -91,7 +88,9 @@ jobs:
           path: ./firmware
       - name: Create Release
         run: |
-          VERSION="${{ env.RELEASE_PREFIX }}-$(date +'%Y.%m.%d')"
+          # Extract version code from profiles.json
+          version_code=$(jq -r '.version_code' ./firmware/profiles.json)
+          VERSION="${{ env.RELEASE_PREFIX }}-$(date +'%Y.%m.%d')-${version_code}"
           # Check if the release already exists
           if gh release view "$VERSION" &>/dev/null; then
             gh release delete "$VERSION" --cleanup-tag -y
