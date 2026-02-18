@@ -23,4 +23,6 @@ fi
 
 # cleanup
 cd "${OPENWRT_CUR_DIR}"
+make clean
+rm -rf dl/*
 rm -rf tmp/*
