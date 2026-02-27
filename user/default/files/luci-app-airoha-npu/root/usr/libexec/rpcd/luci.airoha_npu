@@ -6,7 +6,7 @@
 
 get_status() {
 	# === NPU Status ===
-	local npu_fw="/lib/firmware/airoha/en7581_npu_rv32.bin"
+	local npu_fw="$(ls /lib/firmware/airoha/en7581*npu_rv32.bin 2> /dev/null || true)"
 	local npu_ver="Unknown"
 
 	if [ -f "$npu_fw" ]; then
